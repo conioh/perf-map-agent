@@ -17,18 +17,20 @@
  *   with this program; if not, write to the Free Software Foundation, Inc.,
  *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
+#define _CRT_SECURE_NO_WARNINGS
 
 #include <sys/types.h>
 #include <stdio.h>
 
-#include <error.h>
+#include "error.h"
+#include "unistd.h"
 #include <errno.h>
 
 #include "perf-map-file.h"
 
 FILE *perf_map_open(pid_t pid) {
     char filename[500];
-    snprintf(filename, sizeof(filename), "/tmp/perf-%d.map", pid);
+    snprintf(filename, sizeof(filename), "C:\\Temp\\perf-%d.map", pid);
     FILE * res = fopen(filename, "w");
     if (!res) error(0, errno, "Couldn't open %s.", filename);
     return res;

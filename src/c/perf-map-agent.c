@@ -18,10 +18,12 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
+#include "unistd.h"
 
 #include <sys/types.h>
 
@@ -172,7 +174,7 @@ void write_unfolded_entry(
             entry_p = root_name;
     }
 
-    perf_map_write_entry(method_file, start_addr, end_addr - start_addr, entry_p);
+    perf_map_write_entry(method_file, start_addr, (char*)end_addr - (char*)start_addr, entry_p);
 }
 
 void dump_entries(
@@ -186,7 +188,7 @@ void dump_entries(
     const jvmtiCompiledMethodLoadRecordHeader *header = compile_info;
     char root_name[STRING_BUFFER_SIZE];
     sig_string(jvmti, root_method, root_name, sizeof(root_name));
-    printf("At %s size %x from %p to %p", root_name, code_size, code_addr, code_addr + code_size);
+    printf("At %s size %x from %p to %p", root_name, code_size, code_addr, (char*)code_addr + code_size);
     if (header->kind == JVMTI_CMLR_INLINE_INFO) {
         const jvmtiCompiledMethodLoadInlineRecord *record = (jvmtiCompiledMethodLoadInlineRecord *) header;
         printf(" with %d entries\n", record->numpcs);
@@ -243,7 +245,7 @@ void generate_unfolded_entries(
                 if (i > 0)
                     write_unfolded_entry(jvmti, &record->pcinfo[i - 1], root_method, root_name, start_addr, end_addr);
                 else
-                    generate_single_entry(jvmti, root_method, start_addr, end_addr - start_addr);
+                    generate_single_entry(jvmti, root_method, start_addr, (char*)end_addr - start_addr);
 
                 start_addr = info->pc;
                 cur_method = top_method;
@@ -251,14 +253,14 @@ void generate_unfolded_entries(
         }
 
         // record the last range if there's a gap
-        if (start_addr != code_addr + code_size) {
+        if (start_addr != (char*)code_addr + code_size) {
             // end_addr is end of this complete code blob
-            const void *end_addr = code_addr + code_size;
+            const void *end_addr = (char*)code_addr + code_size;
 
             if (i > 0)
                 write_unfolded_entry(jvmti, &record->pcinfo[i - 1], root_method, root_name, start_addr, end_addr);
             else
-                generate_single_entry(jvmti, root_method, start_addr, end_addr - start_addr);
+                generate_single_entry(jvmti, root_method, start_addr, (char*)end_addr - start_addr);
         }
     } else
         generate_single_entry(jvmti, root_method, code_addr, code_size);
@@ -319,6 +321,7 @@ jvmtiError set_callbacks(jvmtiEnv *jvmti) {
     return (*jvmti)->SetEventCallbacks(jvmti, &callbacks, (jint)sizeof(callbacks));
 }
 
+/*
 JNIEXPORT jint JNICALL
 Agent_OnAttach(JavaVM *vm, char *options, void *reserved) {
     open_map_file();
@@ -343,4 +346,36 @@ Agent_OnAttach(JavaVM *vm, char *options, void *reserved) {
 
     return 0;
 }
+*/
 
+
+JNIEXPORT jint JNICALL
+Agent_OnLoad(JavaVM *vm, char *options, void *reserved) {
+	open_map_file();
+
+	unfold_simple = strstr(options, "unfoldsimple") != NULL;
+	unfold_all = strstr(options, "unfoldall") != NULL;
+	unfold_inlined_methods = strstr(options, "unfold") != NULL || unfold_simple || unfold_all;
+	print_method_signatures = strstr(options, "msig") != NULL;
+	print_source_loc = strstr(options, "sourcepos") != NULL;
+	clean_class_names = strstr(options, "dottedclass") != NULL;
+	debug_dump_unfold_entries = strstr(options, "debug_dump_unfold_entries") != NULL;
+
+	jvmtiEnv *jvmti;
+	(*vm)->GetEnv(vm, (void **)&jvmti, JVMTI_VERSION_1);
+	enable_capabilities(jvmti);
+	set_callbacks(jvmti);
+	set_notification_mode(jvmti, JVMTI_ENABLE);
+    (*jvmti)->GenerateEvents(jvmti, JVMTI_EVENT_DYNAMIC_CODE_GENERATED);
+    (*jvmti)->GenerateEvents(jvmti, JVMTI_EVENT_COMPILED_METHOD_LOAD);
+	
+	return 0;
+}
+JNIEXPORT void JNICALL
+Agent_OnUnload(JavaVM *vm) {
+	jvmtiEnv *jvmti;
+	(*vm)->GetEnv(vm, (void **)&jvmti, JVMTI_VERSION_1);
+
+	set_notification_mode(jvmti, JVMTI_DISABLE);
+	close_map_file();
+}

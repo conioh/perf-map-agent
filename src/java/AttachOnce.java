@@ -18,7 +18,7 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-package net.virtualvoid.perf;
+//package net.virtualvoid.perf;
 
 import java.io.File;
 
@@ -36,7 +36,8 @@ public class AttachOnce {
     static void loadAgent(String pid, String options) throws Exception {
         VirtualMachine vm = VirtualMachine.attach(pid);
         try {
-            File lib = new File("libperfmap.so");
+            //File lib = new File("libperfmap.so");
+            File lib = new File("C:\\Users\\Josef\\Desktop\\code\\perf-map-agent\\src\\c\\Debug\\perf-map-agent.dll");
             String fullPath = lib.getAbsolutePath();
             if (!lib.exists()) {
                 System.out.printf("Expected libperfmap.so at '%s' but it didn't exist.\n", fullPath);
