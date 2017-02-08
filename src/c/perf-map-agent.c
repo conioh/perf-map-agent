@@ -23,7 +23,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include "unistd.h"
+#include <unistd.h>
 
 #include <sys/types.h>
 
@@ -245,7 +245,7 @@ void generate_unfolded_entries(
                 if (i > 0)
                     write_unfolded_entry(jvmti, &record->pcinfo[i - 1], root_method, root_name, start_addr, end_addr);
                 else
-                    generate_single_entry(jvmti, root_method, start_addr, (char*)end_addr - start_addr);
+                    generate_single_entry(jvmti, root_method, start_addr, (char*)end_addr - (char*)start_addr);
 
                 start_addr = info->pc;
                 cur_method = top_method;
@@ -260,7 +260,7 @@ void generate_unfolded_entries(
             if (i > 0)
                 write_unfolded_entry(jvmti, &record->pcinfo[i - 1], root_method, root_name, start_addr, end_addr);
             else
-                generate_single_entry(jvmti, root_method, start_addr, (char*)end_addr - start_addr);
+                generate_single_entry(jvmti, root_method, start_addr, (char*)end_addr - (char*)start_addr);
         }
     } else
         generate_single_entry(jvmti, root_method, code_addr, code_size);
